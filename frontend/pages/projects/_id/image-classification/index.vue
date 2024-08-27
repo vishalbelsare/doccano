@@ -11,11 +11,7 @@
         @click:clear-label="clear"
         @click:review="confirm"
       >
-        <v-btn-toggle
-          v-model="labelOption"
-          mandatory
-          class="ms-2"
-        >
+        <v-btn-toggle v-model="labelOption" mandatory class="ms-2">
           <v-btn icon>
             <v-icon>{{ mdiFormatListBulleted }}</v-icon>
           </v-btn>
@@ -24,22 +20,16 @@
           </v-btn>
         </v-btn-toggle>
       </toolbar-laptop>
-      <toolbar-mobile
-        :total="images.count"
-        class="d-flex d-sm-none"
-      />
+      <toolbar-mobile :total="images.count" class="d-flex d-sm-none" />
     </template>
     <template #content>
-      <v-card
-        v-shortkey="shortKeys"
-        @shortkey="addOrRemove"
-      >
+      <v-card v-shortkey="shortKeys" @shortkey="addOrRemove">
         <v-card-title>
           <label-group
             v-if="labelOption === 0"
             :labels="labels"
             :annotations="annotations"
-            :single-label="project.singleClassClassification"
+            :single-label="project.exclusiveCategories"
             @add="add"
             @remove="remove"
           />
@@ -47,18 +37,13 @@
             v-else
             :labels="labels"
             :annotations="annotations"
-            :single-label="project.singleClassClassification"
+            :single-label="project.exclusiveCategories"
             @add="add"
             @remove="remove"
           />
         </v-card-title>
         <v-divider />
-        <v-img
-          contain
-          :src="image.fileUrl"
-          :max-height="imageSize.height"
-          class="grey lighten-2"
-        />
+        <v-img contain :src="image.url" :max-height="imageSize.height" class="grey lighten-2" />
       </v-card>
     </template>
     <template #sidebar>
@@ -69,20 +54,20 @@
 </template>
 
 <script>
-import _ from 'lodash'
-import { mdiText, mdiFormatListBulleted } from '@mdi/js'
+import { mdiFormatListBulleted, mdiText } from '@mdi/js'
 import { toRefs, useContext } from '@nuxtjs/composition-api'
-import LabelGroup from '@/components/tasks/textClassification/LabelGroup'
-import LabelSelect from '@/components/tasks/textClassification/LabelSelect'
+import _ from 'lodash'
 import LayoutText from '@/components/tasks/layout/LayoutText'
 import ListMetadata from '@/components/tasks/metadata/ListMetadata'
+import AnnotationProgress from '@/components/tasks/sidebar/AnnotationProgress.vue'
+import LabelGroup from '@/components/tasks/textClassification/LabelGroup'
+import LabelSelect from '@/components/tasks/textClassification/LabelSelect'
 import ToolbarLaptop from '@/components/tasks/toolbar/ToolbarLaptop'
 import ToolbarMobile from '@/components/tasks/toolbar/ToolbarMobile'
 import { useLabelList } from '@/composables/useLabelList'
-import AnnotationProgress from '@/components/tasks/sidebar/AnnotationProgress.vue'
+import { Category } from '~/domain/models/tasks/category'
 
 export default {
-
   components: {
     AnnotationProgress,
     LabelGroup,
@@ -105,7 +90,7 @@ export default {
     return {
       ...toRefs(state),
       getLabelList,
-      shortKeys,
+      shortKeys
     }
   },
 
@@ -131,7 +116,8 @@ export default {
       this.projectId,
       this.$route.query.page,
       this.$route.query.q,
-      this.$route.query.isChecked
+      this.$route.query.isChecked,
+      this.$route.query.ordering
     )
     const image = this.images.items[0]
     this.setImageSize(image)
@@ -156,9 +142,10 @@ export default {
 
   watch: {
     '$route.query': '$fetch',
-    enableAutoLabeling(val) {
-      if (val) {
-        this.list(this.image.id)
+    async enableAutoLabeling(val) {
+      if (val && !this.image.isConfirmed) {
+        await this.autoLabel(this.image.id)
+        await this.list(this.image.id)
       }
     }
   },
@@ -166,27 +153,28 @@ export default {
   async created() {
     this.getLabelList(this.projectId)
     this.project = await this.$services.project.findById(this.projectId)
-    this.progress = await this.$services.metrics.fetchMyProgress(this.projectId)
+    this.progress = await this.$repositories.metrics.fetchMyProgress(this.projectId)
   },
 
   methods: {
     async list(imageId) {
-      this.annotations = await this.$services.textClassification.list(this.projectId, imageId)
+      this.annotations = await this.$repositories.category.list(this.projectId, imageId)
     },
 
     async remove(id) {
-      await this.$services.textClassification.delete(this.projectId, this.image.id, id)
+      await this.$repositories.category.delete(this.projectId, this.image.id, id)
       await this.list(this.image.id)
     },
 
     async add(labelId) {
-      await this.$services.textClassification.create(this.projectId, this.image.id, labelId)
+      const category = Category.create(labelId)
+      await this.$repositories.category.create(this.projectId, this.image.id, category)
       await this.list(this.image.id)
     },
 
     async addOrRemove(event) {
       const labelId = parseInt(event.srcKey, 10)
-      const annotation = this.annotations.find(item => item.label === labelId)
+      const annotation = this.annotations.find((item) => item.label === labelId)
       if (annotation) {
         await this.remove(annotation.id)
       } else {
@@ -195,20 +183,20 @@ export default {
     },
 
     async clear() {
-      await this.$services.textClassification.clear(this.projectId, this.image.id)
+      await this.$repositories.category.clear(this.projectId, this.image.id)
       await this.list(this.image.id)
     },
 
     async autoLabel(imageId) {
       try {
-        await this.$services.textClassification.autoLabel(this.projectId, imageId)
+        await this.$repositories.category.autoLabel(this.projectId, imageId)
       } catch (e) {
         console.log(e.response.data.detail)
       }
     },
 
     async updateProgress() {
-      this.progress = await this.$services.metrics.fetchMyProgress(this.projectId)
+      this.progress = await this.$repositories.metrics.fetchMyProgress(this.projectId)
     },
 
     async confirm() {
@@ -220,11 +208,11 @@ export default {
     setImageSize(val) {
       const img = new Image()
       const self = this
-      img.onload = function() {
+      img.onload = function () {
         self.imageSize.height = this.height
         self.imageSize.width = this.width
       }
-      img.src = val.fileUrl
+      img.src = val.url
     }
   }
 }

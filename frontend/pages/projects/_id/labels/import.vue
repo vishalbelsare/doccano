@@ -1,39 +1,34 @@
 <template>
-  <form-import
-    :error-message="errorMessage"
-    @clear="clearErrorMessage"
-    @upload="upload"
-  />
+  <form-import :error-message="errorMessage" @clear="clearErrorMessage" @upload="upload" />
 </template>
 
 <script lang="ts">
 import Vue from 'vue'
-import { ProjectDTO } from '~/services/application/project/projectData'
 import FormImport from '~/components/label/FormImport.vue'
 
 export default Vue.extend({
   components: {
-    FormImport,
+    FormImport
   },
 
   layout: 'project',
 
-  validate({ params, query, app }) {
-    if (!['category', 'span', 'relation'].includes((query.type as string))) {
+  middleware: ['check-auth', 'auth', 'setCurrentProject', 'isProjectAdmin'],
+
+  validate({ params, query, store }) {
+    if (!['category', 'span', 'relation'].includes(query.type as string)) {
       return false
     }
     if (/^\d+$/.test(params.id)) {
-      return app.$services.project.findById(params.id)
-      .then((res:ProjectDTO) => {
-        return res.canDefineLabel
-      })
+      const project = store.getters['projects/project']
+      return project.canDefineLabel
     }
     return false
   },
 
   data() {
     return {
-      errorMessage: '',
+      errorMessage: ''
     }
   },
 
@@ -51,7 +46,7 @@ export default Vue.extend({
       } else {
         return this.$services.relationType
       }
-    },
+    }
   },
 
   methods: {
@@ -59,7 +54,7 @@ export default Vue.extend({
       try {
         await this.service.upload(this.projectId, file)
         this.$router.push(`/projects/${this.projectId}/labels`)
-      } catch(e) {
+      } catch (e: any) {
         this.errorMessage = e.message
       }
     },
@@ -67,6 +62,6 @@ export default Vue.extend({
     clearErrorMessage() {
       this.errorMessage = ''
     }
-  },
+  }
 })
 </script>

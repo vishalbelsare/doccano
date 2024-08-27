@@ -39,68 +39,69 @@
 </template>
 
 <script lang="ts">
-import Vue, { PropType } from 'vue'
 import VAnnotator from 'v-annotator'
+import type { PropType } from 'vue'
+import Vue from 'vue'
+import 'vue-virtual-scroller/dist/vue-virtual-scroller.css'
 import LabelingMenu from './LabelingMenu.vue'
 import { SpanDTO } from '~/services/application/tasks/sequenceLabeling/sequenceLabelingData'
-import 'vue-virtual-scroller/dist/vue-virtual-scroller.css'
 
 export default Vue.extend({
   components: {
     VAnnotator,
-    LabelingMenu,
+    LabelingMenu
   },
 
   props: {
     dark: {
       type: Boolean,
-      default: false,
+      default: false
     },
     rtl: {
       type: Boolean,
-      default: false,
+      default: false
     },
     text: {
       type: String,
-      default: "",
-      required: true,
+      default: '',
+      required: true
     },
     entities: {
       type: Array as PropType<SpanDTO[]>,
       default: () => [],
-      required: true,
+      required: true
     },
     entityLabels: {
       type: Array,
       default: () => [],
-      required: true,
+      required: true
     },
     relations: {
       type: Array,
-      default: () => [],
+      default: () => []
     },
     relationLabels: {
       type: Array,
-      default: () => [],
+      default: () => []
     },
     allowOverlapping: {
       type: Boolean,
       default: false,
-      required: false,
+      required: false
     },
     graphemeMode: {
       type: Boolean,
-      default: false,
+      default: false
     },
     selectedLabel: {
       type: Object,
       default: null,
-      required: false,
+      required: false
     },
     relationMode: {
       type: Boolean,
-      default: false,
-    },
+      default: false
+    }
   },
 
   data() {
@@ -113,8 +114,8 @@ export default Vue.extend({
       endOffset: 0,
       entity: null as any,
       relation: null as any,
-      selectedEntities: [] as SpanDTO[],
-    };
+      selectedEntities: [] as SpanDTO[]
+    }
   },
 
   computed: {
@@ -267,12 +268,12 @@ export default Vue.extend({
     },
 
     updateRelation(labelId: number) {
-      this.$emit("click:relation", this.relation.id, labelId)
+      this.$emit('click:relation', this.relation.id, labelId)
     },
 
     deleteRelation(relation: any) {
       this.$emit('contextmenu:relation', relation.id)
     }
-  },
-});
+  }
+})
 </script>

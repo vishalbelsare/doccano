@@ -5,16 +5,12 @@
         class="text-capitalize ms-2"
         :disabled="!canDelete"
         outlined
-        @click.stop="dialogDelete=true"
+        @click.stop="dialogDelete = true"
       >
         {{ $t('generic.delete') }}
       </v-btn>
       <v-dialog v-model="dialogDelete">
-        <form-delete
-          :selected="selected"
-          @cancel="dialogDelete=false"
-          @remove="remove"
-        />
+        <form-delete :selected="selected" @cancel="dialogDelete = false" @remove="remove" />
       </v-dialog>
     </v-card-title>
     <comment-list
@@ -29,20 +25,24 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue'
 import _ from 'lodash'
+import { mapGetters } from 'vuex'
+import Vue from 'vue'
 import CommentList from '@/components/comment/CommentList.vue'
-import { CommentReadDTO, CommentListDTO } from '~/services/application/comment/commentData'
-import { ProjectDTO } from '~/services/application/project/projectData'
 import FormDelete from '~/components/comment/FormDelete.vue'
+import { CommentItem } from '~/domain/models/comment/comment'
+import { Page } from '~/domain/models/page'
+import { getLinkToAnnotationPage } from '~/presenter/linkToAnnotationPage'
 
 export default Vue.extend({
-
   components: {
     CommentList,
     FormDelete
   },
+
   layout: 'project',
+
+  middleware: ['check-auth', 'auth', 'setCurrentProject', 'isProjectAdmin'],
 
   validate({ params }) {
     return /^\d+$/.test(params.id)
@@ -51,40 +51,39 @@ export default Vue.extend({
   data() {
     return {
       dialogDelete: false,
-      project: {} as ProjectDTO,
-      item: {} as CommentListDTO,
-      selected: [] as CommentReadDTO[],
+      item: {} as Page<CommentItem>,
+      selected: [] as CommentItem[],
       isLoading: false
     }
   },
 
   async fetch() {
     this.isLoading = true
-    this.project = await this.$services.project.findById(this.projectId)
-    this.item = await this.$services.comment.listProjectComment(this.projectId, this.$route.query)
+    this.item = await this.$repositories.comment.listAll(this.projectId, this.$route.query)
     this.isLoading = false
   },
 
   computed: {
+    ...mapGetters('projects', ['project']),
+
     canDelete(): boolean {
       return this.selected.length > 0
     },
-    projectId() {
+    projectId(): string {
       return this.$route.params.id
     }
   },
 
   watch: {
-    '$route.query': _.debounce(function() {
-        // @ts-ignore
-        this.$fetch()
-      }, 1000
-    ),
+    '$route.query': _.debounce(function () {
+      // @ts-ignore
+      this.$fetch()
+    }, 1000)
   },
 
   methods: {
     async remove() {
-      await this.$services.comment.deleteBulk(this.projectId, this.selected)
+      await this.$repositories.comment.deleteBulk(this.projectId, this.selected)
       this.$fetch()
       this.dialogDelete = false
       this.selected = []
@@ -93,8 +92,9 @@ export default Vue.extend({
       this.$router.push(query)
     },
     movePage(query: object) {
+      const link = getLinkToAnnotationPage(this.projectId, this.project.projectType)
       this.updateQuery({
-        path: this.localePath(this.project.pageLink),
+        path: this.localePath(link),
         query
       })
     }

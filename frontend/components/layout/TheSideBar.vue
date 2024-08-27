@@ -1,19 +1,12 @@
 <template>
   <v-list dense>
-    <v-btn
-      color="ms-4 my-1 mb-2 primary text-capitalize"
-      nuxt
-      @click="toLabeling"
-    >
+    <v-btn color="ms-4 my-1 mb-2 primary text-capitalize" nuxt @click="toLabeling">
       <v-icon left>
         {{ mdiPlayCircleOutline }}
       </v-icon>
       {{ $t('home.startAnnotation') }}
     </v-btn>
-    <v-list-item-group
-      v-model="selected"
-      mandatory
-    >
+    <v-list-item-group v-model="selected" mandatory>
       <v-list-item
         v-for="(item, i) in filteredItems"
         :key="i"
@@ -35,15 +28,21 @@
 </template>
 
 <script>
-import { mdiHome, mdiDatabase, mdiCog, mdiChartBar, mdiBookOpenOutline, mdiCommentAccountOutline, mdiLabel, mdiAccount, mdiPlayCircleOutline } from '@mdi/js'
+import {
+  mdiAccount,
+  mdiBookOpenOutline,
+  mdiChartBar,
+  mdiCog,
+  mdiCommentAccountOutline,
+  mdiDatabase,
+  mdiHome,
+  mdiLabel,
+  mdiPlayCircleOutline
+} from '@mdi/js'
+import { getLinkToAnnotationPage } from '~/presenter/linkToAnnotationPage'
 
 export default {
   props: {
-    link: {
-      type: String,
-      default: '',
-      required: true
-    },
     isProjectAdmin: {
       type: Boolean,
       default: false,
@@ -82,13 +81,17 @@ export default {
           icon: mdiLabel,
           text: this.$t('labels.labels'),
           link: 'labels',
-          isVisible: this.isProjectAdmin && this.project.canDefineLabel
+          isVisible:
+            (this.isProjectAdmin || this.project.allowMemberToCreateLabelType) &&
+            this.project.canDefineLabel
         },
         {
           icon: mdiLabel,
           text: 'Relations',
           link: 'links',
-          isVisible: this.isProjectAdmin && this.project.canDefineRelation
+          isVisible:
+            (this.isProjectAdmin || this.project.allowMemberToCreateLabelType) &&
+            this.project.canDefineRelation
         },
         {
           icon: mdiAccount,
@@ -121,15 +124,16 @@ export default {
           isVisible: this.isProjectAdmin
         }
       ]
-      return items.filter(item => item.isVisible)
+      return items.filter((item) => item.isVisible)
     }
   },
 
   methods: {
     toLabeling() {
       const query = this.$services.option.findOption(this.$route.params.id)
+      const link = getLinkToAnnotationPage(this.$route.params.id, this.project.projectType)
       this.$router.push({
-        path: this.localePath(this.link),
+        path: this.localePath(link),
         query
       })
     }

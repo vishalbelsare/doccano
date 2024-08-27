@@ -1,18 +1,14 @@
 <template>
   <v-card>
     <v-card-title>
-      <v-btn
-        class="text-capitalize"
-        color="primary"
-        @click.stop="dialogCreate=true"
-      >
+      <v-btn class="text-capitalize" color="primary" @click.stop="dialogCreate = true">
         {{ $t('generic.add') }}
       </v-btn>
       <v-btn
         class="text-capitalize ms-2"
         :disabled="!canDelete"
         outlined
-        @click.stop="dialogDelete=true"
+        @click.stop="dialogDelete = true"
       >
         {{ $t('generic.delete') }}
       </v-btn>
@@ -25,37 +21,30 @@
         />
       </v-dialog>
       <v-dialog v-model="dialogDelete">
-        <form-delete
-          :selected="selected"
-          @cancel="dialogDelete=false"
-          @remove="remove"
-        />
+        <form-delete :selected="selected" @cancel="dialogDelete = false" @remove="remove" />
       </v-dialog>
     </v-card-title>
-    <member-list
-      v-model="selected"
-      :items="items"
-      :is-loading="isLoading"
-      @edit="editItem"
-    />
+    <member-list v-model="selected" :items="items" :is-loading="isLoading" @edit="editItem" />
   </v-card>
 </template>
 
 <script lang="ts">
 import Vue from 'vue'
-import MemberList from '@/components/member/MemberList.vue'
 import FormDelete from '@/components/member/FormDelete.vue'
+import MemberList from '@/components/member/MemberList.vue'
 import FormCreate from '~/components/member/FormCreate.vue'
-import { MemberDTO } from '~/services/application/member/memberData'
+import { MemberItem } from '~/domain/models/member/member'
 
 export default Vue.extend({
-
   components: {
     MemberList,
     FormCreate,
     FormDelete
   },
+
   layout: 'project',
+
+  middleware: ['check-auth', 'auth', 'setCurrentProject', 'isProjectAdmin'],
 
   validate({ params }) {
     return /^\d+$/.test(params.id)
@@ -70,16 +59,16 @@ export default Vue.extend({
         user: -1,
         role: -1,
         username: '',
-        rolename: ''
-      } as MemberDTO,
+        rolename: 'annotator'
+      } as MemberItem,
       defaultItem: {
         user: -1,
         role: -1,
         username: '',
-        rolename: ''
-      } as MemberDTO,
-      items: [] as MemberDTO[],
-      selected: [] as MemberDTO[],
+        rolename: 'annotator'
+      } as MemberItem,
+      items: [] as MemberItem[],
+      selected: [] as MemberItem[],
       isLoading: false,
       errorMessage: ''
     }
@@ -88,8 +77,8 @@ export default Vue.extend({
   async fetch() {
     this.isLoading = true
     try {
-      this.items = await this.$services.member.list(this.projectId)
-    } catch(e) {
+      this.items = await this.$repositories.member.list(this.projectId)
+    } catch (e) {
       this.$router.push(`/projects/${this.projectId}`)
     } finally {
       this.isLoading = false
@@ -108,21 +97,21 @@ export default Vue.extend({
   methods: {
     async create() {
       try {
-        await this.$services.member.create(this.projectId, this.editedItem)
+        await this.$repositories.member.create(this.projectId, this.editedItem)
         this.close()
         this.$fetch()
-      } catch(e) {
-        this.errorMessage = e.message
+      } catch (e: any) {
+        this.errorMessage = e.response.data.detail
       }
     },
 
     async update() {
       try {
-        await this.$services.member.update(this.projectId, this.editedItem)
+        await this.$repositories.member.update(this.projectId, this.editedItem)
         this.close()
         this.$fetch()
-      } catch(e) {
-        this.errorMessage = e.message
+      } catch (e: any) {
+        this.errorMessage = e.response.data.detail
       }
     },
 
@@ -144,13 +133,13 @@ export default Vue.extend({
     },
 
     async remove() {
-      await this.$services.member.bulkDelete(this.projectId, this.selected)
+      await this.$repositories.member.bulkDelete(this.projectId, this.selected)
       this.$fetch()
       this.dialogDelete = false
       this.selected = []
     },
 
-    editItem(item: MemberDTO) {
+    editItem(item: MemberItem) {
       this.editedIndex = this.items.indexOf(item)
       this.editedItem = Object.assign({}, item)
       this.dialogCreate = true

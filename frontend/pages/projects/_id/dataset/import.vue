@@ -5,15 +5,12 @@
     </v-card-title>
     <v-card-text>
       <v-overlay :value="isImporting">
-        <v-progress-circular
-          indeterminate
-          size="64"
-        />
+        <v-progress-circular indeterminate size="64" />
       </v-overlay>
       <v-select
         v-model="selected"
         :items="catalog"
-        item-text="name"
+        item-text="displayName"
         label="File format"
         outlined
       />
@@ -48,8 +45,14 @@
         :light="$vuetify.theme.dark"
         class="mb-5 pa-5"
       >
-      <pre>{{ example }}</pre>
+        <pre>{{ example }}</pre>
       </v-sheet>
+      <div v-if="selected === 'JSONL(Relation)'">
+        <p class="body-1">For readability, the above format can be displayed as follows:</p>
+        <v-sheet :dark="!$vuetify.theme.dark" :light="$vuetify.theme.dark" class="mb-5 pa-5">
+          <pre>{{ JSON.stringify(JSON.parse(example.replaceAll("'", '"')), null, 4) }}</pre>
+        </v-sheet>
+      </div>
       <file-pond
         v-if="selected && acceptedFileTypes !== '*'"
         ref="pond"
@@ -81,11 +84,7 @@
       ></v-data-table>
     </v-card-text>
     <v-card-actions>
-      <v-btn
-        class='text-capitalize ms-2 primary'
-        :disabled="isDisabled"
-        @click="importDataset"
-      >
+      <v-btn class="text-capitalize ms-2 primary" :disabled="isDisabled" @click="importDataset">
         {{ $t('generic.import') }}
       </v-btn>
     </v-card-actions>
@@ -93,32 +92,31 @@
 </template>
 
 <script>
+import FilePondPluginFileValidateType from 'filepond-plugin-file-validate-type'
+import 'filepond/dist/filepond.min.css'
 import Cookies from 'js-cookie'
-import vueFilePond from "vue-filepond"
-import "filepond/dist/filepond.min.css"
-import FilePondPluginFileValidateType from "filepond-plugin-file-validate-type"
-const FilePond = vueFilePond(
-  FilePondPluginFileValidateType,
-)
+import vueFilePond from 'vue-filepond'
+const FilePond = vueFilePond(FilePondPluginFileValidateType)
 
 export default {
-
   components: {
-    FilePond,
+    FilePond
   },
 
   layout: 'project',
 
+  middleware: ['check-auth', 'auth', 'setCurrentProject', 'isProjectAdmin'],
+
   validate({ params }) {
     return /^\d+$/.test(params.id)
   },
-  
+
   data() {
     return {
       catalog: [],
       selected: null,
       myFiles: [],
-      option: {'column_data': '', 'column_label': '', 'delimiter': ''},
+      option: { column_data: '', column_label: '', delimiter: '' },
       taskId: null,
       polling: null,
       errors: [],
@@ -127,17 +125,15 @@ export default {
         { text: 'Line', value: 'line' },
         { text: 'Message', value: 'message' }
       ],
-      requiredRules: [
-        v => !!v || 'Field value is required'
-      ],
+      requiredRules: [(v) => !!v || 'Field value is required'],
       server: {
         url: '/v1/fp',
         headers: {
-          'X-CSRFToken': Cookies.get('csrftoken'),
+          'X-CSRFToken': Cookies.get('csrftoken')
         },
         process: {
           url: '/process/',
-          method: 'POST',
+          method: 'POST'
         },
         patch: '/patch/',
         revert: '/revert/',
@@ -147,7 +143,7 @@ export default {
       },
       uploadedFiles: [],
       valid: false,
-      isImporting: false,
+      isImporting: false
     }
   },
 
@@ -156,7 +152,7 @@ export default {
       return this.uploadedFiles.length === 0 || this.taskId !== null || !this.valid
     },
     properties() {
-      const item = this.catalog.find(item => item.name === this.selected)
+      const item = this.catalog.find((item) => item.displayName === this.selected)
       if (item) {
         return item.properties
       } else {
@@ -165,16 +161,16 @@ export default {
     },
     textFields() {
       const asArray = Object.entries(this.properties)
-      const textFields = asArray.filter(([key, value]) => !('enum' in value))
+      const textFields = asArray.filter(([_, value]) => !('enum' in value))
       return Object.fromEntries(textFields)
     },
     selectFields() {
       const asArray = Object.entries(this.properties)
-      const textFields = asArray.filter(([key, value]) => 'enum' in value)
+      const textFields = asArray.filter(([_, value]) => 'enum' in value)
       return Object.fromEntries(textFields)
     },
     acceptedFileTypes() {
-      const item = this.catalog.find(item => item.name === this.selected)
+      const item = this.catalog.find((item) => item.displayName === this.selected)
       if (item) {
         return item.acceptTypes
       } else {
@@ -182,14 +178,15 @@ export default {
       }
     },
     example() {
-      const item = this.catalog.find(item => item.name === this.selected)
+      const item = this.catalog.find((item) => item.displayName === this.selected)
       if (item) {
         const column_data = 'column_data'
         const column_label = 'column_label'
         if (column_data in this.option && column_label in this.option) {
-          return item.example.replaceAll(column_data, this.option[column_data])
-                             .replaceAll(column_label, this.option[column_label])
-                             .trim()
+          return item.example
+            .replaceAll(column_data, this.option[column_data])
+            .replaceAll(column_label, this.option[column_label])
+            .trim()
         } else {
           return item.example.trim()
         }
@@ -201,13 +198,13 @@ export default {
 
   watch: {
     selected() {
-      const item = this.catalog.find(item => item.name === this.selected)
+      const item = this.catalog.find((item) => item.displayName === this.selected)
       for (const [key, value] of Object.entries(item.properties)) {
         this.option[key] = value.default
       }
       this.myFiles = []
       for (const file of this.uploadedFiles) {
-        this.$services.parse.revert(file.serverId)
+        this.$repositories.parse.revert(file.serverId)
       }
       this.uploadedFiles = []
       this.errors = []
@@ -215,12 +212,12 @@ export default {
   },
 
   async created() {
-    this.catalog = await this.$services.catalog.list(this.$route.params.id)
+    this.catalog = await this.$repositories.catalog.list(this.$route.params.id)
     this.pollData()
   },
 
   beforeDestroy() {
-	  clearInterval(this.polling)
+    clearInterval(this.polling)
   },
 
   methods: {
@@ -231,25 +228,27 @@ export default {
     },
     handleFilePondRemoveFile(error, file) {
       console.log(error)
-      const index = this.uploadedFiles.findIndex(item => item.id === file.id)
+      const index = this.uploadedFiles.findIndex((item) => item.id === file.id)
       if (index > -1) {
-          this.uploadedFiles.splice(index, 1)
-          this.$nextTick()
+        this.uploadedFiles.splice(index, 1)
+        this.$nextTick()
       }
     },
     async importDataset() {
       this.isImporting = true
-      this.taskId = await this.$services.parse.analyze(
+      const item = this.catalog.find((item) => item.displayName === this.selected)
+      this.taskId = await this.$repositories.parse.analyze(
         this.$route.params.id,
-        this.selected,
-        this.uploadedFiles.map(item => item.serverId),
+        item.name,
+        item.taskId,
+        this.uploadedFiles.map((item) => item.serverId),
         this.option
       )
     },
     pollData() {
-		  this.polling = setInterval(async() => {
+      this.polling = setInterval(async () => {
         if (this.taskId) {
-          const res = await this.$services.taskStatus.get(this.taskId)
+          const res = await this.$repositories.taskStatus.get(this.taskId)
           if (res.ready) {
             this.taskId = null
             this.errors = res.result.error
@@ -261,8 +260,8 @@ export default {
             }
           }
         }
-  		}, 3000)
-	  },
+      }, 3000)
+    },
     toVisualize(text) {
       if (text === '\t') {
         return 'Tab'
@@ -274,6 +273,6 @@ export default {
         return text
       }
     }
-  },
-};
+  }
+}
 </script>

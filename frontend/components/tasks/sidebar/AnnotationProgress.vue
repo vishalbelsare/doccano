@@ -12,11 +12,7 @@
           <v-list-item-subtitle class="text-right" v-text="progress.complete" />
         </v-list-item>
       </v-list>
-      <v-progress-linear
-        :value="percentage"
-        color="success"
-        height="25"
-      >
+      <v-progress-linear :value="percentage" color="success" height="25">
         <template #default="{ value }">
           <strong>{{ value }}%</strong>
         </template>
@@ -26,7 +22,8 @@
 </template>
 
 <script lang="ts">
-import Vue, { PropType } from 'vue'
+import type { PropType } from 'vue'
+import Vue from 'vue'
 import { MyProgress } from '@/domain/models/metrics/metrics'
 
 export default Vue.extend({
@@ -34,12 +31,12 @@ export default Vue.extend({
     progress: {
       type: Object as PropType<MyProgress>,
       required: true
-    },
+    }
   },
 
   computed: {
     percentage(): number {
-      return Math.ceil(this.progress.complete / this.progress.total * 100)
+      return Math.ceil((this.progress.complete / this.progress.total) * 100)
     }
   }
 })

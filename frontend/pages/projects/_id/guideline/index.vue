@@ -10,20 +10,21 @@
 </template>
 
 <script>
-import _ from 'lodash'
-import 'tui-editor/dist/tui-editor.css'
-import 'tui-editor/dist/tui-editor-contents.css'
-import 'codemirror/lib/codemirror.css'
-import { Editor } from '@toast-ui/vue-editor'
 import '@/assets/style/editor.css'
+import { Editor } from '@toast-ui/vue-editor'
+import 'codemirror/lib/codemirror.css'
+import _ from 'lodash'
+import 'tui-editor/dist/tui-editor-contents.css'
+import 'tui-editor/dist/tui-editor.css'
 
 export default {
-
   components: {
     Editor
   },
 
   layout: 'project',
+
+  middleware: ['check-auth', 'auth', 'setCurrentProject', 'isProjectAdmin'],
 
   validate({ params }) {
     return /^\d+$/.test(params.id)
@@ -35,7 +36,7 @@ export default {
         language: this.$t('toastui.localeCode')
       },
       project: {},
-      mounted: false,
+      mounted: false
     }
   },
 
@@ -47,10 +48,10 @@ export default {
   },
 
   methods: {
-    updateProject: _.debounce(function() {
+    updateProject: _.debounce(function () {
       if (this.mounted) {
         this.project.guideline = this.$refs.toastuiEditor.invoke('getMarkdown')
-        this.$services.project.update(this.project)
+        this.$services.project.update(this.$route.params.id, this.project)
       }
     }, 1000)
   }
@@ -58,7 +59,8 @@ export default {
 </script>
 
 <style>
-.te-md-container .CodeMirror, .tui-editor-contents {
+.te-md-container .CodeMirror,
+.tui-editor-contents {
   font-size: 20px;
 }
 </style>

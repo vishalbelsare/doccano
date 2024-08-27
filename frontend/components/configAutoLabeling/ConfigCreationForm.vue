@@ -1,15 +1,10 @@
 <template>
-  <v-stepper
-    v-model="step.count"
-  >
+  <v-stepper v-model="step.count">
     <v-overlay :value="isLoading">
       <v-progress-circular indeterminate size="64" />
     </v-overlay>
     <config-header :step="step.count" />
-    <config-template-name
-      v-model="fields"
-      @next="step.next()"
-    />
+    <config-template-name v-model="fields" @next="step.next()" />
     <config-parameters
       v-if="fields.modelAttrs !== undefined"
       v-model="fields.modelAttrs"
@@ -47,13 +42,13 @@
 
 <script lang="ts">
 import Vue from 'vue'
-import { StepCounter } from '@/domain/models/utils/stepper'
 import ConfigHeader from './form/ConfigHeader.vue'
-import ConfigTemplateName from './form/ConfigTemplateName.vue'
-import ConfigTemplate from './form/ConfigTemplate.vue'
-import ConfigParameters from './form/ConfigParameters.vue'
 import ConfigLabelMapping from './form/ConfigLabelMapping.vue'
-import { ConfigItem, Fields } from '~/domain/models/autoLabeling/config'
+import ConfigParameters from './form/ConfigParameters.vue'
+import ConfigTemplate from './form/ConfigTemplate.vue'
+import ConfigTemplateName from './form/ConfigTemplateName.vue'
+import { StepCounter } from '@/domain/models/utils/stepper'
+import { ConfigItem, Fields } from '@/domain/models/autoLabeling/config'
 
 export default Vue.extend({
   components: {
@@ -86,61 +81,73 @@ export default Vue.extend({
 
   watch: {
     'fields.modelName'() {
-      this.passTesting = {parameter: false, template: false, mapping: false}
-     },
-     'fields.modelAttrs': {
-       handler() {
-        this.passTesting = {parameter: false, template: false, mapping: false}
-       },
-       deep: true
-     },
+      this.passTesting = { parameter: false, template: false, mapping: false }
+    },
+    'fields.modelAttrs': {
+      handler() {
+        this.passTesting = {
+          parameter: false,
+          template: false,
+          mapping: false
+        }
+      },
+      deep: true
+    },
     'fields.template'() {
-      this.passTesting = {parameter: true, template: false, mapping: false}
+      this.passTesting = { parameter: true, template: false, mapping: false }
     },
     'fields.labelMapping': {
-       handler() {
-        this.passTesting = {parameter: true, template: true, mapping: false}
-       },
-       deep: true
-     },
+      handler() {
+        this.passTesting = { parameter: true, template: true, mapping: false }
+      },
+      deep: true
+    }
   },
 
   methods: {
-    testConfig(promise: Promise<any>, key: 'parameter'|'template'|'mapping') {
+    testConfig(promise: Promise<any>, key: 'parameter' | 'template' | 'mapping') {
       this.isLoading = true
-      promise.then((value) => {
-        this.response[key] = value
-        this.passTesting[key] = true
-        this.errors = []
-      }).catch((error) => {
-        this.errors = [error.message]
-      }).finally(() => {
-        this.isLoading = false
-      })
+      promise
+        .then((value) => {
+          this.response[key] = value
+          this.passTesting[key] = true
+          this.errors = []
+        })
+        .catch((error) => {
+          this.errors = [error.response.data]
+        })
+        .finally(() => {
+          this.isLoading = false
+        })
     },
     testParameters(text: string) {
       const projectId = this.$route.params.id
       const item = ConfigItem.parseFromUI(this.fields)
-      const promise = this.$services.config.testParameters(projectId, item, text)
+      const promise = this.$repositories.config.testParameters(projectId, item, text)
       this.testConfig(promise, 'parameter')
     },
     testTemplate() {
       const projectId = this.$route.params.id
       const item = ConfigItem.parseFromUI(this.fields)
-      const promise = this.$services.config.testTemplate(projectId, this.response.parameter, item)
+      const promise = this.$repositories.config.testTemplate(
+        projectId,
+        this.response.parameter,
+        item
+      )
       this.testConfig(promise, 'template')
     },
     testMapping() {
       const projectId = this.$route.params.id
       const item = ConfigItem.parseFromUI(this.fields)
-      const promise = this.$services.config.testMapping(projectId, item, this.response.template)
+      const promise = this.$repositories.config.testMapping(projectId, item, this.response.template)
       this.testConfig(promise, 'mapping')
     },
     saveConfig() {
       const projectId = this.$route.params.id
       const item = ConfigItem.parseFromUI(this.fields)
       this.isLoading = true
-      this.$services.config.save(projectId, item)
+      this.$repositories.config
+        .create(projectId, item)
         .then(() => {
           this.step.first()
           this.$emit('onCreate')

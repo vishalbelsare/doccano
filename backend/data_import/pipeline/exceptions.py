@@ -1,4 +1,12 @@
-class FileParseException(Exception):
+from typing import Any, Dict
+
+
+class FileImportException(Exception):
+    def dict(self) -> Dict[str, Any]:
+        raise NotImplementedError()
+
+
+class FileParseException(FileImportException):
     def __init__(self, filename: str, line_num: int, message: str):
         self.filename = filename
         self.line_num = line_num
@@ -11,7 +19,7 @@ class FileParseException(Exception):
         return {"filename": self.filename, "line": self.line_num, "message": self.message}
 
 
-class MaximumFileSizeException(Exception):
+class MaximumFileSizeException(FileImportException):
     def __init__(self, filename: str, max_size: int):
         self.filename = filename
         self.max_size = max_size
@@ -23,7 +31,7 @@ class MaximumFileSizeException(Exception):
         return {"filename": self.filename, "line": -1, "message": str(self)}
 
 
-class FileTypeException(Exception):
+class FileTypeException(FileImportException):
     def __init__(self, filename: str, filetype: str, allowed_types=None):
         self.filename = filename
         self.filetype = filetype
@@ -34,3 +42,12 @@ class FileTypeException(Exception):
 
     def dict(self):
         return {"filename": self.filename, "line": -1, "message": str(self)}
+
+
+class FileFormatException(FileImportException):
+    def __init__(self, file_format: str):
+        self.file_format = file_format
+
+    def dict(self):
+        message = f"Unknown file format: {self.file_format}"
+        return {"message": message}

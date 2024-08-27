@@ -7,12 +7,7 @@
           <p class="font-weight-regular body-1">
             You can select the template to create the auto-labeling configuration.{{ valid }}
           </p>
-          <v-select
-            v-model="selectedTask"
-            :items="taskNames"
-            label="Select a task name"
-            outlined
-          />
+          <v-select v-model="selectedTask" :items="taskNames" label="Select a task name" outlined />
           <v-select
             v-model="templateName"
             :items="templateNames"
@@ -24,12 +19,7 @@
       </v-card-text>
       <v-card-actions class="pa-0">
         <v-spacer />
-        <v-btn
-          :disabled="!valid"
-          color="primary"
-          class="text-capitalize"
-          @click="$emit('next')"
-        >
+        <v-btn :disabled="!valid" color="primary" class="text-capitalize" @click="$emit('next')">
           Next
         </v-btn>
       </v-card-actions>
@@ -40,12 +30,12 @@
 <script lang="ts">
 import Vue from 'vue'
 import { templateNameRules } from '@/rules/index'
-import { ProjectDTO } from '~/services/application/project/projectData'
+import { Project } from '~/domain/models/project/project'
 
 export default Vue.extend({
   data() {
     return {
-      project: {} as ProjectDTO,
+      project: {} as Project,
       selectedTask: '',
       templateName: null,
       templateNames: [] as string[],
@@ -66,18 +56,18 @@ export default Vue.extend({
     taskType(): string {
       return {
         DocumentClassification: 'Category',
-        SequenceLabeling      : 'Span',
-        Seq2seq               : 'Text',
-        ImageClassification   : 'Category',
-        Speech2text           : 'Text',
+        SequenceLabeling: 'Span',
+        Seq2seq: 'Text',
+        ImageClassification: 'Category',
+        Speech2text: 'Text'
       }[this.selectedTask]!
-  }
+    }
   },
 
   watch: {
     async templateName(val) {
       if (val) {
-        const response = await this.$services.template.find(this.projectId, val)
+        const response = await this.$repositories.template.find(this.projectId, val)
         const field = response.toObject()
         field.taskType = this.taskType
         this.$emit('input', field)
@@ -100,7 +90,7 @@ export default Vue.extend({
 
   methods: {
     async fetchTemplateNames() {
-      this.templateNames = await this.$services.template.list(this.projectId, this.selectedTask)
+      this.templateNames = await this.$repositories.template.list(this.projectId, this.selectedTask)
     }
   }
 })

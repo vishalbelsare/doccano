@@ -6,16 +6,8 @@
       </template>
     </the-header>
 
-    <v-navigation-drawer
-      v-model="drawerLeft"
-      app
-      clipped
-    >
-      <the-side-bar
-        :link="getLink"
-        :is-project-admin="isProjectAdmin"
-        :project="currentProject"
-      />
+    <v-navigation-drawer v-model="drawerLeft" app clipped>
+      <the-side-bar :is-project-admin="isProjectAdmin" :project="currentProject" />
     </v-navigation-drawer>
 
     <v-main class="pb-0">
@@ -30,7 +22,6 @@ import TheHeader from '~/components/layout/TheHeader'
 import TheSideBar from '~/components/layout/TheSideBar'
 
 export default {
-
   components: {
     TheSideBar,
     TheHeader
@@ -45,9 +36,9 @@ export default {
   },
 
   computed: {
-    ...mapGetters('projects', ['getLink', 'currentProject']),
+    ...mapGetters('projects', ['currentProject'])
   },
-  
+
   watch: {
     '$route.query'() {
       this.$services.option.save(this.$route.params.id, this.$route.query)
@@ -55,7 +46,8 @@ export default {
   },
 
   async created() {
-    this.isProjectAdmin = await this.$services.member.isProjectAdmin(this.$route.params.id)
+    const member = await this.$repositories.member.fetchMyRole(this.$route.params.id)
+    this.isProjectAdmin = member.isProjectAdmin
   }
 }
 </script>

@@ -1,3 +1,5 @@
+import uuid
+
 from model_mommy import mommy
 from rest_framework import status
 from rest_framework.reverse import reverse
@@ -6,15 +8,15 @@ from .utils import make_annotation
 from api.tests.utils import CRUDMixin
 from examples.tests.utils import make_doc
 from label_types.tests.utils import make_label
-from labels.models import Category, Span, TextLabel
-from projects.models import DOCUMENT_CLASSIFICATION, SEQ2SEQ, SEQUENCE_LABELING
+from labels.models import BoundingBox, Category, Segmentation, Span, TextLabel
+from projects.models import ProjectType
 from projects.tests.utils import prepare_project
 from users.tests.utils import make_user
 
 
 class TestLabelList:
     model = Category
-    task = DOCUMENT_CLASSIFICATION
+    task = ProjectType.DOCUMENT_CLASSIFICATION
     view_name = "annotation_list"
 
     @classmethod
@@ -49,13 +51,13 @@ class TestLabelList:
 
 class TestCategoryList(TestLabelList, CRUDMixin):
     model = Category
-    task = DOCUMENT_CLASSIFICATION
+    task = ProjectType.DOCUMENT_CLASSIFICATION
     view_name = "category_list"
 
 
 class TestSpanList(TestLabelList, CRUDMixin):
     model = Span
-    task = SEQUENCE_LABELING
+    task = ProjectType.SEQUENCE_LABELING
     view_name = "span_list"
 
     @classmethod
@@ -63,15 +65,35 @@ class TestSpanList(TestLabelList, CRUDMixin):
         make_annotation(cls.task, doc=doc, user=member, start_offset=0, end_offset=1)
 
 
+class TestBBoxList(TestLabelList, CRUDMixin):
+    model = BoundingBox
+    task = ProjectType.BOUNDING_BOX
+    view_name = "bbox_list"
+
+    @classmethod
+    def make_annotation(cls, doc, member):
+        mommy.make("BoundingBox", example=doc, user=member, x=0, y=0, width=0, height=0)
+
+
+class TestSegmentationList(TestLabelList, CRUDMixin):
+    model = Segmentation
+    task = ProjectType.SEGMENTATION
+    view_name = "segmentation_list"
+
+    @classmethod
+    def make_annotation(cls, doc, member):
+        mommy.make("Segmentation", example=doc, user=member, points=[0, 1])
+
+
 class TestTextList(TestLabelList, CRUDMixin):
     model = TextLabel
-    task = SEQ2SEQ
+    task = ProjectType.SEQ2SEQ
     view_name = "text_list"
 
 
 class TestSharedLabelList:
     model = Category
-    task = DOCUMENT_CLASSIFICATION
+    task = ProjectType.DOCUMENT_CLASSIFICATION
     view_name = "annotation_list"
 
     @classmethod
@@ -99,13 +121,13 @@ class TestSharedLabelList:
 
 class TestSharedCategoryList(TestSharedLabelList, CRUDMixin):
     model = Category
-    task = DOCUMENT_CLASSIFICATION
+    task = ProjectType.DOCUMENT_CLASSIFICATION
     view_name = "category_list"
 
 
 class TestSharedSpanList(TestSharedLabelList, CRUDMixin):
     model = Span
-    task = SEQUENCE_LABELING
+    task = ProjectType.SEQUENCE_LABELING
     view_name = "span_list"
     start_offset = 0
 
@@ -117,12 +139,12 @@ class TestSharedSpanList(TestSharedLabelList, CRUDMixin):
 
 class TestSharedTextList(TestSharedLabelList, CRUDMixin):
     model = TextLabel
-    task = SEQ2SEQ
+    task = ProjectType.SEQ2SEQ
     view_name = "text_list"
 
 
 class TestDataLabeling:
-    task = DOCUMENT_CLASSIFICATION
+    task = ProjectType.DOCUMENT_CLASSIFICATION
     view_name = "annotation_list"
 
     def setUp(self):
@@ -152,7 +174,7 @@ class TestCategoryCreation(TestDataLabeling, CRUDMixin):
 
 
 class TestSpanCreation(TestDataLabeling, CRUDMixin):
-    task = SEQUENCE_LABELING
+    task = ProjectType.SEQUENCE_LABELING
     view_name = "span_list"
 
     def create_data(self):
@@ -161,7 +183,7 @@ class TestSpanCreation(TestDataLabeling, CRUDMixin):
 
 
 class TestRelationCreation(TestDataLabeling, CRUDMixin):
-    task = SEQUENCE_LABELING
+    task = ProjectType.SEQUENCE_LABELING
     view_name = "relation_list"
 
     def create_data(self):
@@ -172,15 +194,43 @@ class TestRelationCreation(TestDataLabeling, CRUDMixin):
 
 
 class TestTextLabelCreation(TestDataLabeling, CRUDMixin):
-    task = SEQ2SEQ
+    task = ProjectType.SEQ2SEQ
     view_name = "text_list"
 
     def create_data(self):
         return {"text": "example"}
 
 
+class TestBoundingBoxCreation(TestDataLabeling, CRUDMixin):
+    task = ProjectType.BOUNDING_BOX
+    view_name = "bbox_list"
+
+    def create_data(self):
+        label = mommy.make("CategoryType", project=self.project.item)
+        return {"x": 0, "y": 0, "width": 0, "height": 0, "label": label.id}
+
+    def test_allows_project_member_to_annotate(self):
+        for member in self.project.members:
+            self.data["uuid"] = str(uuid.uuid4())
+            self.assert_create(member, status.HTTP_201_CREATED)
+
+
+class TestSegmentationCreation(TestDataLabeling, CRUDMixin):
+    task = ProjectType.SEGMENTATION
+    view_name = "segmentation_list"
+
+    def create_data(self):
+        label = mommy.make("CategoryType", project=self.project.item)
+        return {"points": [1, 2], "label": label.id}
+
+    def test_allows_project_member_to_annotate(self):
+        for member in self.project.members:
+            self.data["uuid"] = str(uuid.uuid4())
+            self.assert_create(member, status.HTTP_201_CREATED)
+
+
 class TestLabelDetail:
-    task = SEQUENCE_LABELING
+    task = ProjectType.SEQUENCE_LABELING
     view_name = "annotation_detail"
 
     def setUp(self):
@@ -230,7 +280,7 @@ class TestLabelDetail:
 
 
 class TestCategoryDetail(TestLabelDetail, CRUDMixin):
-    task = DOCUMENT_CLASSIFICATION
+    task = ProjectType.DOCUMENT_CLASSIFICATION
     view_name = "category_detail"
 
     def create_annotation_data(self, doc):
@@ -238,12 +288,12 @@ class TestCategoryDetail(TestLabelDetail, CRUDMixin):
 
 
 class TestSpanDetail(TestLabelDetail, CRUDMixin):
-    task = SEQUENCE_LABELING
+    task = ProjectType.SEQUENCE_LABELING
     view_name = "span_detail"
 
 
 class TestTextDetail(TestLabelDetail, CRUDMixin):
-    task = SEQ2SEQ
+    task = ProjectType.SEQ2SEQ
     view_name = "text_detail"
 
     def setUp(self):
@@ -254,8 +304,24 @@ class TestTextDetail(TestLabelDetail, CRUDMixin):
         return make_annotation(task=self.task, doc=doc, user=self.project.admin)
 
 
+class TestBBoxDetail(TestLabelDetail, CRUDMixin):
+    task = ProjectType.BOUNDING_BOX
+    view_name = "bbox_detail"
+
+    def create_annotation_data(self, doc):
+        return mommy.make("BoundingBox", example=doc, user=self.project.admin, x=0, y=0, width=0, height=0)
+
+
+class TestSegmentationDetail(TestLabelDetail, CRUDMixin):
+    task = ProjectType.SEGMENTATION
+    view_name = "segmentation_detail"
+
+    def create_annotation_data(self, doc):
+        return mommy.make("Segmentation", example=doc, user=self.project.admin, points=[1, 2])
+
+
 class TestSharedLabelDetail:
-    task = DOCUMENT_CLASSIFICATION
+    task = ProjectType.DOCUMENT_CLASSIFICATION
     view_name = "annotation_detail"
 
     def setUp(self):
@@ -286,7 +352,7 @@ class TestSharedCategoryDetail(TestSharedLabelDetail, CRUDMixin):
 
 
 class TestSharedSpanDetail(TestSharedLabelDetail, CRUDMixin):
-    task = SEQUENCE_LABELING
+    task = ProjectType.SEQUENCE_LABELING
     view_name = "span_detail"
 
     def make_annotation(self, doc, member):
@@ -294,7 +360,7 @@ class TestSharedSpanDetail(TestSharedLabelDetail, CRUDMixin):
 
 
 class TestSharedTextDetail(TestSharedLabelDetail, CRUDMixin):
-    task = SEQ2SEQ
+    task = ProjectType.SEQ2SEQ
     view_name = "text_detail"
 
     def setUp(self):

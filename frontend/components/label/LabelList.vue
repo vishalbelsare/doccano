@@ -8,7 +8,7 @@
     :loading-text="$t('generic.loading')"
     :no-data-text="$t('vuetify.noDataAvailable')"
     :footer-props="{
-      'showFirstLastPage': true,
+      showFirstLastPage: true,
       'items-per-page-text': $t('vuetify.itemsPerPageText'),
       'page-text': $t('dataset.pageText')
     }"
@@ -35,10 +35,7 @@
       </v-chip>
     </template>
     <template #[`item.actions`]="{ item }">
-      <v-icon
-        small
-        @click="$emit('edit', item)"
-      >
+      <v-icon small @click="$emit('edit', item)">
         {{ mdiPencil }}
       </v-icon>
     </template>
@@ -46,8 +43,9 @@
 </template>
 
 <script lang="ts">
-import Vue, { PropType } from 'vue'
-import { mdiPencil, mdiMagnify } from '@mdi/js'
+import { mdiMagnify, mdiPencil } from '@mdi/js'
+import type { PropType } from 'vue'
+import Vue from 'vue'
 import { LabelDTO } from '~/services/application/label/labelData'
 
 export default Vue.extend({
@@ -66,6 +64,10 @@ export default Vue.extend({
       type: Array as PropType<LabelDTO[]>,
       default: () => [],
       required: true
+    },
+    disableEdit: {
+      type: Boolean,
+      default: false
     }
   },
 
@@ -79,12 +81,15 @@ export default Vue.extend({
 
   computed: {
     headers() {
-      return [
-        { text: this.$t('generic.name'),    value: 'text' },
-        { text: this.$t('labels.shortkey'), value: 'suffixKey' },
-        { text: this.$t('labels.color'),    value: 'backgroundColor' },
-        { text: 'Actions', value: 'actions', sortable: false },
+      const headers = [
+        { text: this.$t('generic.name'), value: 'text', sortable: true },
+        { text: this.$t('labels.shortkey'), value: 'suffixKey', sortable: true },
+        { text: this.$t('labels.color'), value: 'backgroundColor', sortable: true }
       ]
+      if (!this.disableEdit) {
+        headers.push({ text: 'Actions', value: 'actions', sortable: false })
+      }
+      return headers
     }
   }
 })

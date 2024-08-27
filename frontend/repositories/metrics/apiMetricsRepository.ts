@@ -1,11 +1,8 @@
 import ApiService from '@/services/api.service'
-import { MetricsRepository } from '@/domain/models/metrics/metricsRepository'
-import { Distribution, Progress, MyProgress } from '~/domain/models/metrics/metrics'
+import { Distribution, MyProgress, Progress } from '~/domain/models/metrics/metrics'
 
-export class APIMetricsRepository implements MetricsRepository {
-  constructor(
-    private readonly request = ApiService
-  ) {}
+export class APIMetricsRepository {
+  constructor(private readonly request = ApiService) {}
 
   async fetchCategoryDistribution(projectId: string): Promise<Distribution> {
     const url = `/projects/${projectId}/metrics/category-distribution`

@@ -12,57 +12,65 @@
     </v-tabs>
     <v-card-title>
       <action-menu
+        :add-only="canOnlyAdd"
         @create="$router.push('labels/add?type=' + labelType)"
         @upload="$router.push('labels/import?type=' + labelType)"
         @download="download"
       />
       <v-btn
+        v-if="!canOnlyAdd"
         class="text-capitalize ms-2"
         :disabled="!canDelete"
         outlined
-        @click.stop="dialogDelete=true"
+        @click.stop="dialogDelete = true"
       >
         {{ $t('generic.delete') }}
       </v-btn>
       <v-dialog v-model="dialogDelete">
-        <form-delete
-          :selected="selected"
-          @cancel="dialogDelete=false"
-          @remove="remove"
-        />
+        <form-delete :selected="selected" @cancel="dialogDelete = false" @remove="remove" />
       </v-dialog>
     </v-card-title>
     <label-list
       v-model="selected"
       :items="items"
       :is-loading="isLoading"
+      :disable-edit="canOnlyAdd"
       @edit="editItem"
     />
   </v-card>
 </template>
 
 <script lang="ts">
+import { mapGetters } from 'vuex'
 import Vue from 'vue'
 import ActionMenu from '@/components/label/ActionMenu.vue'
 import FormDelete from '@/components/label/FormDelete.vue'
 import LabelList from '@/components/label/LabelList.vue'
 import { LabelDTO } from '~/services/application/label/labelData'
-import { ProjectDTO } from '~/services/application/project/projectData'
+import { MemberItem } from '~/domain/models/member/member'
 
 export default Vue.extend({
-
   components: {
     ActionMenu,
     FormDelete,
     LabelList
   },
+
   layout: 'project',
 
-  validate({ params, app }) {
+  middleware: ['check-auth', 'auth', 'setCurrentProject'],
+
+  validate({ params, app, store }) {
     if (/^\d+$/.test(params.id)) {
-      return app.$services.project.findById(params.id)
-      .then((res:ProjectDTO) => {
-        return res.canDefineLabel
+      const project = store.getters['projects/project']
+      if (!project.canDefineLabel) {
+        return false
+      }
+      return app.$repositories.member.fetchMyRole(params.id).then((member: MemberItem) => {
+        if (member.isProjectAdmin) {
+          return true
+        }
+        return project.allowMemberToCreateLabelType
       })
     }
     return false
@@ -75,11 +83,20 @@ export default Vue.extend({
       selected: [] as LabelDTO[],
       isLoading: false,
       tab: 0,
-      project: {} as ProjectDTO,
+      member: {} as MemberItem
     }
   },
 
   computed: {
+    ...mapGetters('projects', ['project']),
+
+    canOnlyAdd(): boolean {
+      if (this.member.isProjectAdmin) {
+        return false
+      }
+      return this.project.allowMemberToCreateLabelType
+    },
+
     canDelete(): boolean {
       return this.selected.length > 0
     },
@@ -102,12 +119,12 @@ export default Vue.extend({
 
     labelType(): string {
       if (this.hasMultiType) {
-        if (this.isIntentDetectionAndSlotFilling){
+        if (this.isIntentDetectionAndSlotFilling) {
           return ['category', 'span'][this.tab!]
         } else {
           return ['span', 'relation'][this.tab!]
         }
-      } else if (this.project.projectType.endsWith('Classification')) {
+      } else if (this.project.canDefineCategory) {
         return 'category'
       } else {
         return 'span'
@@ -124,7 +141,7 @@ export default Vue.extend({
         } else {
           return [this.$services.spanType, this.$services.relationType][this.tab!]
         }
-      } else if (this.project.projectType.endsWith('Classification')) {
+      } else if (this.project.canDefineCategory) {
         return this.$services.categoryType
       } else {
         return this.$services.spanType
@@ -139,7 +156,7 @@ export default Vue.extend({
   },
 
   async created() {
-    this.project = await this.$services.project.findById(this.projectId)
+    this.member = await this.$repositories.member.fetchMyRole(this.projectId)
     await this.list()
   },
 
@@ -149,7 +166,7 @@ export default Vue.extend({
       this.items = await this.service.list(this.projectId)
       this.isLoading = false
     },
-  
+
     async remove() {
       await this.service.bulkDelete(this.projectId, this.selected)
       this.list()

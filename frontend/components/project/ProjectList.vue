@@ -10,7 +10,7 @@
     :loading-text="$t('generic.loading')"
     :no-data-text="$t('vuetify.noDataAvailable')"
     :footer-props="{
-      'showFirstLastPage': true,
+      showFirstLastPage: true,
       'items-per-page-options': [10, 50, 100],
       'items-per-page-text': $t('vuetify.itemsPerPageText'),
       'page-text': $t('dataset.pageText')
@@ -34,28 +34,25 @@
         <span>{{ item.name }}</span>
       </nuxt-link>
     </template>
-    <template #[`item.updatedAt`]="{ item }">
-      <span>{{ item.updatedAt | dateParse('YYYY-MM-DDTHH:mm:ss') | dateFormat('DD/MM/YYYY HH:mm') }}</span>
+    <template #[`item.createdAt`]="{ item }">
+      <span>{{
+        dateFormat(dateParse(item.createdAt, 'YYYY-MM-DDTHH:mm:ss'), 'YYYY/MM/DD HH:mm')
+      }}</span>
     </template>
     <template #[`item.tags`]="{ item }">
-      <v-chip
-        v-for="tag in item.tags"
-        :key="tag.id"
-        outlined v-text="tag.text"
-      />
+      <v-chip v-for="tag in item.tags" :key="tag.id" outlined v-text="tag.text" />
     </template>
   </v-data-table>
 </template>
 
 <script lang="ts">
-import Vue, { PropType } from 'vue'
 import { mdiMagnify } from '@mdi/js'
+import { dateFormat } from '@vuejs-community/vue-filter-date-format'
+import { dateParse } from '@vuejs-community/vue-filter-date-parse'
+import type { PropType } from 'vue'
+import Vue from 'vue'
 import { DataOptions } from 'vuetify/types'
-import VueFilterDateFormat from '@vuejs-community/vue-filter-date-format'
-import VueFilterDateParse from '@vuejs-community/vue-filter-date-parse'
-import { ProjectDTO } from '~/services/application/project/projectData'
-Vue.use(VueFilterDateFormat)
-Vue.use(VueFilterDateParse)
+import { Project } from '~/domain/models/project/project'
 
 export default Vue.extend({
   props: {
@@ -65,12 +62,12 @@ export default Vue.extend({
       required: true
     },
     items: {
-      type: Array as PropType<ProjectDTO[]>,
+      type: Array as PropType<Project[]>,
       default: () => [],
       required: true
     },
     value: {
-      type: Array as PropType<ProjectDTO[]>,
+      type: Array as PropType<Project[]>,
       default: () => [],
       required: true
     },
@@ -85,18 +82,21 @@ export default Vue.extend({
     return {
       search: this.$route.query.q,
       options: {} as DataOptions,
-      mdiMagnify
+      mdiMagnify,
+      dateFormat,
+      dateParse
     }
   },
 
   computed: {
-    headers() {
+    headers(): { text: any; value: string; sortable?: boolean }[] {
       return [
         { text: this.$t('generic.name'), value: 'name' },
-        { text: this.$t('generic.description'), value: 'description' },
+        { text: this.$t('generic.description'), value: 'description', sortable: false },
         { text: this.$t('generic.type'), value: 'projectType' },
-        { text: 'Updated', value: 'updatedAt' },
-        { text: 'Tags', value: 'tags'}
+        { text: 'Created', value: 'createdAt' },
+        { text: 'Author', value: 'author' },
+        { text: 'Tags', value: 'tags', sortable: false }
       ]
     }
   },
@@ -104,32 +104,38 @@ export default Vue.extend({
   watch: {
     options: {
       handler() {
-        const self: any = this
-        self.updateQuery({
+        this.updateQuery({
           query: {
-            limit: self.options.itemsPerPage.toString(),
-            offset: ((self.options.page - 1) * self.options.itemsPerPage).toString(),
-            q: self.search
+            limit: this.options.itemsPerPage.toString(),
+            offset: ((this.options.page - 1) * this.options.itemsPerPage).toString(),
+            q: this.search
           }
         })
       },
       deep: true
     },
     search() {
-      const self: any = this
-      self.updateQuery({
+      this.updateQuery({
         query: {
-          limit: self.options.itemsPerPage.toString(),
+          limit: this.options.itemsPerPage.toString(),
           offset: '0',
-          q: self.search
+          q: this.search
         }
       })
-      self.options.page = 1
+      this.options.page = 1
     }
   },
 
   methods: {
     updateQuery(payload: any) {
+      const { sortBy, sortDesc } = this.options
+      if (sortBy.length === 1 && sortDesc.length === 1) {
+        payload.query.sortBy = sortBy[0]
+        payload.query.sortDesc = sortDesc[0]
+      } else {
+        payload.query.sortBy = 'createdAt'
+        payload.query.sortDesc = true
+      }
       this.$emit('update:query', payload)
     }
   }

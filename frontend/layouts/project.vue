@@ -6,27 +6,13 @@
       </template>
     </the-header>
 
-    <v-navigation-drawer
-      v-model="drawerLeft"
-      app
-      clipped
-      color=""
-    >
-      <the-side-bar
-        :link="getLink"
-        :is-project-admin="isProjectAdmin"
-        :project="currentProject"
-      />
+    <v-navigation-drawer v-model="drawerLeft" app clipped color="">
+      <the-side-bar :is-project-admin="isProjectAdmin" :project="currentProject" />
     </v-navigation-drawer>
 
     <v-main>
-      <v-container
-        fluid
-        fill-height
-      >
-        <v-layout
-          justify-center
-        >
+      <v-container fluid fill-height>
+        <v-layout justify-center>
           <v-flex fill-height>
             <nuxt />
           </v-flex>
@@ -38,30 +24,29 @@
 
 <script>
 import { mapGetters } from 'vuex'
-import TheSideBar from '~/components/layout/TheSideBar'
 import TheHeader from '~/components/layout/TheHeader'
+import TheSideBar from '~/components/layout/TheSideBar'
 
 export default {
-
   components: {
     TheSideBar,
     TheHeader
   },
-  middleware: ['check-auth', 'auth', 'check-admin'],
 
   data() {
     return {
       drawerLeft: null,
-      isProjectAdmin: false,
+      isProjectAdmin: false
     }
   },
 
   computed: {
-    ...mapGetters('projects', ['getLink', 'currentProject']),
+    ...mapGetters('projects', ['currentProject'])
   },
 
   async created() {
-    this.isProjectAdmin = await this.$services.member.isProjectAdmin(this.$route.params.id)
+    const member = await this.$repositories.member.fetchMyRole(this.$route.params.id)
+    this.isProjectAdmin = member.isProjectAdmin
   }
 }
 </script>
